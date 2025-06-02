@@ -43,7 +43,7 @@ class PacManGame:
         self.max_penalty = None
         self.find_player()
         self.last_scores = []
-        self.max_scores_to_show = 25
+        self.max_scores_to_show = 55
 
         flags = pygame.RESIZABLE
 
@@ -175,7 +175,7 @@ class PacManGame:
         if self.last_scores:
             last_scores_to_consider = 25
             avg_score = sum(self.last_scores[-last_scores_to_consider:]) / last_scores_to_consider
-            avg_text = self.font.render(f"Average: {avg_score:.2f}", True, (255, 255, 255))
+            avg_text = self.font.render(f"Average for last {last_scores_to_consider} rounds: {avg_score:.2f}", True, (255, 255, 255))
             self.screen.blit(avg_text, (5, 40))
             y_start = 80
         else:
