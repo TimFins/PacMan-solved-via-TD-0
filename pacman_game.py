@@ -1,11 +1,12 @@
 import pygame
 import os
-import random
+from td_agent import TDAgent
+agent = TDAgent()
 
 TILE_SIZE = 64
 BORDER_THICKNESS = 120
-FPS = 60
-PAUSE = 5
+FPS = 5000
+PAUSE = 1
 LEVEL = [
     ['.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'],
     ['.', ' ', ' ', ' ', ' ', ' ', '.', ' ', '.', ' ', ' ', '.'],
@@ -172,7 +173,8 @@ class PacManGame:
         self.screen.blit(penalty_text, (5, 5))
 
         if self.last_scores:
-            avg_score = sum(self.last_scores) / len(self.last_scores)
+            last_scores_to_consider = 25
+            avg_score = sum(self.last_scores[-last_scores_to_consider:]) / last_scores_to_consider
             avg_text = self.font.render(f"Average: {avg_score:.2f}", True, (255, 255, 255))
             self.screen.blit(avg_text, (5, 40))
             y_start = 80
@@ -211,33 +213,6 @@ class PacManGame:
     def get_possible_moves(self):
         return [self.move_left, self.move_right, self.move_up, self.move_down]
 
-    def sense_adjacent(self):
-        x, y = self.player_pos
-        directions = {
-            'left': (x - 1, y),
-            'right': (x + 1, y),
-            'up': (x, y - 1),
-            'down': (x, y + 1)
-        }
-        results = {}
-        for dir, (nx, ny) in directions.items():
-            if not self.can_move(nx, ny):
-                results[dir] = (False, 1)
-                continue
-            tile = self.level[ny][nx]
-            if tile == 'G':
-                results[dir] = (True, 100)
-            elif tile == 'E':
-                results[dir] = (True, -20)
-            elif tile == '*':
-                results[dir] = (False, -10)
-            elif tile == '.':
-                results[dir] = (False, -1)
-            elif tile == ' ':
-                results[dir] = (False, 1)
-        return results
-
-
 if __name__ == "__main__":
     start_maximized = True
     game = PacManGame(LEVEL, start_maximized=start_maximized)
@@ -256,21 +231,18 @@ if __name__ == "__main__":
 
         print(f"Round {game.round_num} start!")
 
+        state = agent.get_state(game)
+
         while game.running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    game.close()
-                    exit()
+            old_state = agent.get_state(game)
+            action = agent.choose_action(game, move_mapping)
+            old_penalty = game.penalty
 
-            sense = game.sense_adjacent()
-            min_penalty = min(penalty for (terminal, penalty) in sense.values())
-            best_moves = [dir for dir, (term, penalty) in sense.items() if penalty == min_penalty]
-            chosen_dir = random.choice(best_moves)
-            move_func = move_mapping[chosen_dir]
+            action()
 
-            pygame.time.wait(PAUSE)
-            move_func()
-            pygame.time.wait(PAUSE)
+            reward = game.penalty - old_penalty
+            new_state = agent.get_state(game)
+            agent.update(old_state, reward, new_state)
 
         # Update score tracking
         if game.max_penalty is None or game.penalty < game.max_penalty:
