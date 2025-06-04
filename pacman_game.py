@@ -1,11 +1,12 @@
 import pygame
 import os
 from td_agent import TDAgent
+
 agent = TDAgent()
 
 TILE_SIZE = 64
 BORDER_THICKNESS = 120
-FPS = 5000
+FPS = 60
 PAUSE = 1
 LEVEL = [
     ['.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'],
@@ -243,6 +244,8 @@ if __name__ == "__main__":
             reward = game.penalty - old_penalty
             new_state = agent.get_state(game)
             agent.update(old_state, reward, new_state)
+
+            pygame.time.wait(PAUSE)
 
         # Update score tracking
         if game.max_penalty is None or game.penalty < game.max_penalty:
