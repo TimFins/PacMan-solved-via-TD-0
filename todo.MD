@@ -8,6 +8,7 @@
 - Show currently found best path (maybe via a red line through the field)
 - Execute best strategy (maybe)
 - Rotate pacman depending on the direction
+- Scale images to 100x100 pixels (right now they are slightly stretched)
 
 ## Algorithm
 - The algorithm doesn't save the best strategy yet. It does save the best costs gained for the best strategy but not the strategy itself.
