@@ -31,9 +31,11 @@ class TDAgent:
         results = {}
         for dir, (dx, dy) in directions.items():
             nx, ny = x + dx, y + dy
+            
             if not game.can_move(nx, ny):
+                results[dir] = (self.get_state_from_level((x, y), game.level), 1, False)
                 continue
-
+            
             # Create a deep copy of the level to simulate the move
             new_level = [row[:] for row in game.level]
             tile = new_level[ny][nx]
