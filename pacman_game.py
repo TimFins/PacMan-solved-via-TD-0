@@ -26,11 +26,11 @@ TILE_COLORS = {
 }
 
 IMAGE_PATHS = {
-    'P': 'assets/pacman.png',
-    'G': 'assets/ghost.png',
-    '.': 'assets/bonus.png',
-    '*': 'assets/star.png',
-    'E': 'assets/goal.png',
+    'P': 'assets/pacman.PNG',
+    'G': 'assets/ghost.PNG',
+    '.': 'assets/bonus.PNG',
+    '*': 'assets/star.PNG',
+    'E': 'assets/goal.PNG',
 }
 
 class PacManGame:
