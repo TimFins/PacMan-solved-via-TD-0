@@ -9,6 +9,7 @@ TILE_SIZE = 64
 BORDER_THICKNESS = 120
 FPS = 60
 DEFAULT_MOVES_PER_SECOND = 1
+DEFAULT_GAMMA = 0.9
 PAUSE = 1
 LEVEL = [
     ['.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'],
@@ -29,6 +30,10 @@ TILE_COLORS = {
     'X': (0, 0, 255),
 }
 
+DEFAULT_TEXT_FIELD_COLOR = (70, 130, 180)
+
+HIGHLIGHTED_TEXT_FIELD_COLOR = (100, 160, 210)
+
 IMAGE_PATHS = {
     ' ': 'assets/empty.PNG',
     'P': 'assets/pacman.PNG',
@@ -45,6 +50,7 @@ class PacManGame:
         self.level = [row[:] for row in level]
         self.height = len(level)
         self.width = len(level[0])
+        self.gamma = str(DEFAULT_GAMMA)
         self.penalty = 0
         self.max_penalty = None
         self.find_player()
@@ -82,7 +88,8 @@ class PacManGame:
         self.resume_stop_button_text = "Start"
         self.perform_step_forward = False
         self.moves_per_second = str(DEFAULT_MOVES_PER_SECOND)
-        self.is_adjust_play_rate_button_active = False
+        self.is_adjust_play_rate_text_field_active = False
+        self.is_adjust_gamma_text_field_active = False
         self.round_num = 1
 
     def load_images(self):
@@ -249,8 +256,6 @@ class PacManGame:
         resume_stop_button_text_surf = self.font.render(self.resume_stop_button_text, True, (255, 255, 255))
         resume_stop_button_text_rect = resume_stop_button_text_surf.get_rect(center=resume_stop_button_rect.center)
         self.screen.blit(resume_stop_button_text_surf, resume_stop_button_text_rect)
-
-        # Store for click detection
         self.resume_stop_button = resume_stop_button_rect
         
         # Step forwards button
@@ -259,19 +264,20 @@ class PacManGame:
         step_forwards_button_text_surf = self.font.render("Step forward", True, (255, 255, 255))
         step_forwards_button_text_rect = step_forwards_button_text_surf.get_rect(center=step_forwards_button_rect.center)
         self.screen.blit(step_forwards_button_text_surf, step_forwards_button_text_rect)
-
-        # Store for click detection
         self.step_forwards_button = step_forwards_button_rect
         
-        # Adjust play rate button
-        adjust_play_rate_button_rect = pygame.Rect(380, self.screen.get_height() - 80, 160, 60)
-        pygame.draw.rect(self.screen, (70, 130, 180), adjust_play_rate_button_rect)
-        adjust_play_rate_button_text_surf = self.font.render(str(game.moves_per_second), True, (255, 255, 255))
-        adjust_play_rate_button_text_rect = adjust_play_rate_button_text_surf.get_rect(center=adjust_play_rate_button_rect.center)
-        self.screen.blit(adjust_play_rate_button_text_surf, adjust_play_rate_button_text_rect)
+        # Input field for adjusting play rate
+        adjust_play_rate_text_field_rect = pygame.Rect(380, self.screen.get_height() - 80, 160, 60)
+        pygame.draw.rect(self.screen, DEFAULT_TEXT_FIELD_COLOR if not game.is_adjust_play_rate_text_field_active else HIGHLIGHTED_TEXT_FIELD_COLOR, adjust_play_rate_text_field_rect)
+        adjust_play_rate_text_field_text_surf = self.font.render(str(game.moves_per_second), True, (255, 255, 255))
+        adjust_play_rate_text_field_text_rect = adjust_play_rate_text_field_text_surf.get_rect(center=adjust_play_rate_text_field_rect.center)
+        self.screen.blit(adjust_play_rate_text_field_text_surf, adjust_play_rate_text_field_text_rect)
+        self.adjust_play_rate_text_field = adjust_play_rate_text_field_rect
 
-        # Store for click detection
-        self.adjust_play_rate_button = adjust_play_rate_button_rect
+        # Text for play rate input field
+        play_rate_surf = self.font.render("moves/sec", True, (255, 255, 255))
+        play_rate_rect = play_rate_surf.get_rect(center=(adjust_play_rate_text_field_rect.center[0], adjust_play_rate_text_field_rect.center[1]-50))
+        self.screen.blit(play_rate_surf, play_rate_rect)
 
         # Quit program button
         quit_program_button_rect = pygame.Rect(self.screen.get_width() - 180, self.screen.get_height() - 80, 160, 60)
@@ -279,9 +285,20 @@ class PacManGame:
         quit_program_button_text_surf = self.font.render("Quit", True, (255, 255, 255))
         quit_program_button_text_rect = quit_program_button_text_surf.get_rect(center=quit_program_button_rect.center)
         self.screen.blit(quit_program_button_text_surf, quit_program_button_text_rect)
-
-        # Store for click detection
         self.quit_program_button = quit_program_button_rect
+        
+        # Input field for adjusting gamma
+        adjust_gamma_text_field_rect = pygame.Rect(560, self.screen.get_height() - 80, 160, 60)
+        pygame.draw.rect(self.screen, DEFAULT_TEXT_FIELD_COLOR if not game.is_adjust_gamma_text_field_active else HIGHLIGHTED_TEXT_FIELD_COLOR, adjust_gamma_text_field_rect)
+        adjust_gamma_text_field_text_surf = self.font.render(str(game.gamma), True, (255, 255, 255))
+        adjust_gamma_text_field_text_rect = adjust_gamma_text_field_text_surf.get_rect(center=adjust_gamma_text_field_rect.center)
+        self.screen.blit(adjust_gamma_text_field_text_surf, adjust_gamma_text_field_text_rect)
+        self.adjust_gamma_text_field = adjust_gamma_text_field_rect
+        
+        # Text for gamma input field
+        gamma_text_surf = self.font.render("Gamma", True, (255, 255, 255))
+        gamma_text_rect = gamma_text_surf.get_rect(center=(adjust_gamma_text_field_rect.center[0], adjust_gamma_text_field_rect.center[1]-50))
+        self.screen.blit(gamma_text_surf, gamma_text_rect)
 
         pygame.display.flip()
 
@@ -357,20 +374,29 @@ if __name__ == "__main__":
                     if hasattr(game, 'step_forwards_button') and game.step_forwards_button.collidepoint(event.pos):
                         if game.is_paused:
                             game.perform_step_forward = True
-                    if hasattr(game, 'adjust_play_rate_button') and game.adjust_play_rate_button.collidepoint(event.pos):
-                        game.is_adjust_play_rate_button_active = True
+                    if hasattr(game, 'adjust_play_rate_text_field') and game.adjust_play_rate_text_field.collidepoint(event.pos):
+                        game.is_adjust_play_rate_text_field_active = True
                     else:
-                        game.is_adjust_play_rate_button_active = False
+                        game.is_adjust_play_rate_text_field_active = False
+                    if hasattr(game, 'adjust_gamma_text_field') and game.adjust_gamma_text_field.collidepoint(event.pos):
+                        game.is_adjust_gamma_text_field_active = True
+                    else:
+                        game.is_adjust_gamma_text_field_active = False
                     game.draw()
                     if hasattr(game, 'quit_program_button') and game.quit_program_button.collidepoint(event.pos):
                         running = False
                         sys.exit(0)
                 elif event.type == pygame.KEYDOWN:
-                    if hasattr(game, 'adjust_play_rate_button') and game.is_adjust_play_rate_button_active:
+                    if hasattr(game, 'adjust_play_rate_text_field') and game.is_adjust_play_rate_text_field_active:
                         if event.key == pygame.K_BACKSPACE:
                             game.moves_per_second = game.moves_per_second[:-1]
                         else:
                             game.moves_per_second += event.unicode
+                    if hasattr(game, 'adjust_gamma_text_field') and game.is_adjust_gamma_text_field_active:
+                        if event.key == pygame.K_BACKSPACE:
+                            game.gamma = game.gamma[:-1]
+                        else:
+                            game.gamma += event.unicode
                         game.draw()
             pygame.time.wait(PAUSE)
 
