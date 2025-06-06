@@ -1,5 +1,6 @@
 import pygame
 import os
+import sys
 from td_agent import TDAgent
 
 agent = TDAgent()
@@ -7,6 +8,7 @@ agent = TDAgent()
 TILE_SIZE = 64
 BORDER_THICKNESS = 120
 FPS = 60
+DEFAULT_MOVES_PER_SECOND = 1
 PAUSE = 1
 LEVEL = [
     ['.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'],
@@ -28,11 +30,13 @@ TILE_COLORS = {
 }
 
 IMAGE_PATHS = {
+    ' ': 'assets/empty.PNG',
     'P': 'assets/pacman.PNG',
     'G': 'assets/ghost.PNG',
     '.': 'assets/bonus.PNG',
     '*': 'assets/star.PNG',
     'E': 'assets/goal.PNG',
+    'X': 'assets/wall.PNG'
 }
 
 class PacManGame:
@@ -70,8 +74,15 @@ class PacManGame:
         pygame.display.set_caption("PacMan with TD(0)")
         self.font = pygame.font.SysFont("Arial", 24)
         self.images = self.load_images()
+        self.other_pacman_orientations = self.generate_other_pacman_orientations(self.images.get("P"))
+        self.is_clockwise_orientation = True
         self.clock = pygame.time.Clock()
         self.running = True
+        self.is_paused = True
+        self.resume_stop_button_text = "Start"
+        self.perform_step_forward = False
+        self.moves_per_second = str(DEFAULT_MOVES_PER_SECOND)
+        self.is_adjust_play_rate_button_active = False
         self.round_num = 1
 
     def load_images(self):
@@ -84,6 +95,18 @@ class PacManGame:
             else:
                 images[tile] = None
         return images
+
+    def generate_other_pacman_orientations(self, original_pacman):
+        pacman_orientations = {
+            "facing_right": original_pacman
+        }
+        pacman_orientations["facing_left"] = pygame.transform.flip(original_pacman, flip_x=True, flip_y=False)
+        pacman_orientations["facing_up_clockwise"] = pygame.transform.rotate(original_pacman, 90)
+        pacman_orientations["facing_up_counterclockwise"] = pygame.transform.rotate(pygame.transform.flip(original_pacman, flip_x=True, flip_y=False), -90)
+        pacman_orientations["facing_down_clockwise"] = pygame.transform.rotate(original_pacman, -90)
+        pacman_orientations["facing_down_counterclockwise"] = pygame.transform.rotate(pygame.transform.flip(original_pacman, flip_x=True, flip_y=False), 90)
+        
+        return pacman_orientations
 
     def find_player(self):
         for y in range(self.height):
@@ -144,16 +167,31 @@ class PacManGame:
             self.clock.tick(FPS)
 
     def move_left(self):
+        self.is_clockwise_orientation = False
+        self.change_pacman_orientation("facing_left")
         self.move_pacman(-1, 0)
 
     def move_right(self):
+        self.is_clockwise_orientation = True
+        self.change_pacman_orientation("facing_right")
         self.move_pacman(1, 0)
 
     def move_up(self):
+        if self.is_clockwise_orientation:
+            self.change_pacman_orientation("facing_up_clockwise")
+        else:
+            self.change_pacman_orientation("facing_up_counterclockwise")
         self.move_pacman(0, -1)
 
     def move_down(self):
+        if self.is_clockwise_orientation:
+            self.change_pacman_orientation("facing_down_clockwise")
+        else:
+            self.change_pacman_orientation("facing_down_counterclockwise")
         self.move_pacman(0, 1)
+        
+    def change_pacman_orientation(self, orientation):
+        self.images["P"] = self.other_pacman_orientations.get(orientation)
 
     def draw(self):
         self.screen.fill((50, 50, 50))
@@ -205,6 +243,46 @@ class PacManGame:
         max_rect = max_text.get_rect(center=(self.screen.get_width() // 2, 15))
         self.screen.blit(max_text, max_rect)
 
+        # Draw resume/pause button
+        resume_stop_button_rect = pygame.Rect(20, self.screen.get_height() - 80, 160, 60)
+        pygame.draw.rect(self.screen, (70, 130, 180), resume_stop_button_rect)
+        resume_stop_button_text_surf = self.font.render(self.resume_stop_button_text, True, (255, 255, 255))
+        resume_stop_button_text_rect = resume_stop_button_text_surf.get_rect(center=resume_stop_button_rect.center)
+        self.screen.blit(resume_stop_button_text_surf, resume_stop_button_text_rect)
+
+        # Store for click detection
+        self.resume_stop_button = resume_stop_button_rect
+        
+        # Step forwards button
+        step_forwards_button_rect = pygame.Rect(200, self.screen.get_height() - 80, 160, 60)
+        pygame.draw.rect(self.screen, (70, 130, 180), step_forwards_button_rect)
+        step_forwards_button_text_surf = self.font.render("Step forward", True, (255, 255, 255))
+        step_forwards_button_text_rect = step_forwards_button_text_surf.get_rect(center=step_forwards_button_rect.center)
+        self.screen.blit(step_forwards_button_text_surf, step_forwards_button_text_rect)
+
+        # Store for click detection
+        self.step_forwards_button = step_forwards_button_rect
+        
+        # Adjust play rate button
+        adjust_play_rate_button_rect = pygame.Rect(380, self.screen.get_height() - 80, 160, 60)
+        pygame.draw.rect(self.screen, (70, 130, 180), adjust_play_rate_button_rect)
+        adjust_play_rate_button_text_surf = self.font.render(str(game.moves_per_second), True, (255, 255, 255))
+        adjust_play_rate_button_text_rect = adjust_play_rate_button_text_surf.get_rect(center=adjust_play_rate_button_rect.center)
+        self.screen.blit(adjust_play_rate_button_text_surf, adjust_play_rate_button_text_rect)
+
+        # Store for click detection
+        self.adjust_play_rate_button = adjust_play_rate_button_rect
+
+        # Quit program button
+        quit_program_button_rect = pygame.Rect(self.screen.get_width() - 180, self.screen.get_height() - 80, 160, 60)
+        pygame.draw.rect(self.screen, (70, 130, 180), quit_program_button_rect)
+        quit_program_button_text_surf = self.font.render("Quit", True, (255, 255, 255))
+        quit_program_button_text_rect = quit_program_button_text_surf.get_rect(center=quit_program_button_rect.center)
+        self.screen.blit(quit_program_button_text_surf, quit_program_button_text_rect)
+
+        # Store for click detection
+        self.quit_program_button = quit_program_button_rect
+
         pygame.display.flip()
 
     def close(self):
@@ -231,7 +309,7 @@ if __name__ == "__main__":
         'up': game.move_up,
         'down': game.move_down,
     }
-
+    
     while True:
         game.round_num = round_num + 1
         game.reset()
@@ -239,19 +317,63 @@ if __name__ == "__main__":
         print(f"Round {game.round_num} start!")
 
         state = agent.get_state(game)
+        
+        last_step_time = pygame.time.get_ticks()
+        # milliseconds between moves. 
+        # E.g. MOVES_PER_SECOND = 2 --> 2 moves per second --> 500ms delay between each move
 
         while game.running:
-            old_state = agent.get_state(game)
-            action = agent.choose_action(game, move_mapping)
-            old_penalty = game.penalty
+            try:
+                STEP_DELAY = 1000 / float(game.moves_per_second)
+            except:
+                STEP_DELAY = 1000
+            current_time = pygame.time.get_ticks()
+            if (not game.is_paused and current_time - last_step_time >= STEP_DELAY) or game.perform_step_forward:
+                game.perform_step_forward = False
+                last_step_time = current_time
+                old_state = agent.get_state(game)
+                action = agent.choose_action(game, move_mapping)
+                old_penalty = game.penalty
 
-            action()
+                action()
 
-            reward = game.penalty - old_penalty
-            new_state = agent.get_state(game)
-            agent.update(old_state, reward, new_state)
-
+                reward = game.penalty - old_penalty
+                new_state = agent.get_state(game)
+                agent.update(old_state, reward, new_state)
+            
+            # Event handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if hasattr(game, 'resume_stop_button') and game.resume_stop_button.collidepoint(event.pos):
+                        if game.is_paused:
+                            game.resume_stop_button_text = "Stop"
+                            game.is_paused = False
+                        else:
+                            game.resume_stop_button_text = "Start"
+                            game.is_paused = True
+                        game.draw()
+                    if hasattr(game, 'step_forwards_button') and game.step_forwards_button.collidepoint(event.pos):
+                        if game.is_paused:
+                            game.perform_step_forward = True
+                    if hasattr(game, 'adjust_play_rate_button') and game.adjust_play_rate_button.collidepoint(event.pos):
+                        game.is_adjust_play_rate_button_active = True
+                    else:
+                        game.is_adjust_play_rate_button_active = False
+                    game.draw()
+                    if hasattr(game, 'quit_program_button') and game.quit_program_button.collidepoint(event.pos):
+                        running = False
+                        sys.exit(0)
+                elif event.type == pygame.KEYDOWN:
+                    if hasattr(game, 'adjust_play_rate_button') and game.is_adjust_play_rate_button_active:
+                        if event.key == pygame.K_BACKSPACE:
+                            game.moves_per_second = game.moves_per_second[:-1]
+                        else:
+                            game.moves_per_second += event.unicode
+                        game.draw()
             pygame.time.wait(PAUSE)
+
 
         # Update score tracking
         if game.max_penalty is None or game.penalty < game.max_penalty:
